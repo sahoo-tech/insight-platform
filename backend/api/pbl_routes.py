@@ -89,47 +89,70 @@ def submit_soft_skill_assessment():
     }
     """
     try:
-        data = request.json
+        # Guarding against request.json being None or not a dict
+        data = request.get_json(silent=True)
+        if not data or not isinstance(payload, dict):
+            return jsonify({'error': 'Invalid or missing JSON body'}), 400
+        required_fields = ['team_id', 'assessed_student_id', 'ratings']        
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            return jsonify({'error': f'Missing required fields: {missing}'}), 400
+        # Validating payload['ratings'] type/structure
+        ratings = data.get('ratings')
+        if not isinstance(ratings, dict):
+            return jsonify({'error': 'Invalid ratings structure: ratings must be a dictionary'}), 400
+        # Soft-skill ratings follow a 1–5 Likert scale.
+        # Missing or skipped ratings are represented as None and must be excluded from averages.
+        def average_valid(values):
+            valid = [v for v in values if isinstance(v, (int, float)) and 1 <= v <= 5]
+            return round(sum(valid) / len(valid), 2) if valid else None
         
-        # Calculate dimension averages
-        ratings = data['ratings']
-        td_avg = sum([
-            ratings.get('td_communication', 0),
-            ratings.get('td_mutual_support', 0),
-            ratings.get('td_trust', 0),
-            ratings.get('td_active_listening', 0)
-        ]) / 4.0
         
-        ts_avg = sum([
-            ratings.get('ts_clear_roles', 0),
-            ratings.get('ts_task_scheduling', 0),
-            ratings.get('ts_decision_making', 0),
-            ratings.get('ts_conflict_resolution', 0)
-        ]) / 4.0
         
-        tm_avg = sum([
-            ratings.get('tm_clear_purpose', 0),
-            ratings.get('tm_smart_goals', 0),
-            ratings.get('tm_passion', 0),
-            ratings.get('tm_synergy', 0)
-        ]) / 4.0
-        
-        te_avg = sum([
-            ratings.get('te_growth_mindset', 0),
-            ratings.get('te_quality_work', 0),
-            ratings.get('te_self_monitoring', 0),
-            ratings.get('te_reflective_practice', 0)
-        ]) / 4.0
+
+        td_avg = average_valid([
+            ratings.get('td_communication'),
+            ratings.get('td_mutual_support'),
+            ratings.get('td_trust'),
+            ratings.get('td_active_listening')
+        ])
+
+        ts_avg = average_valid([
+            ratings.get('ts_clear_roles'),
+            ratings.get('ts_task_scheduling'),
+            ratings.get('ts_decision_making'),
+            ratings.get('ts_conflict_resolution')
+        ])
+
+        tm_avg = average_valid([
+            ratings.get('tm_clear_purpose'),
+            ratings.get('tm_smart_goals'),
+            ratings.get('tm_passion'),
+            ratings.get('tm_synergy')
+        ])
+
+        te_avg = average_valid([
+            ratings.get('te_growth_mindset'),
+            ratings.get('te_quality_work'),
+            ratings.get('te_self_monitoring'),
+            ratings.get('te_reflective_practice')
+        ])
+
+        overall_components = [td_avg, ts_avg, tm_avg, te_avg]
+        valid_components = [v for v in overall_components if v is not None]
         
         assessment = {
             'assessment_id': str(uuid.uuid4()),
             'team_id': data['team_id'],
             'assessed_student_id': data['assessed_student_id'],
-            'overall_td_score': round(td_avg, 2),
-            'overall_ts_score': round(ts_avg, 2),
-            'overall_tm_score': round(tm_avg, 2),
-            'overall_te_score': round(te_avg, 2),
-            'overall_score': round((td_avg + ts_avg + tm_avg + te_avg) / 4, 2),
+            'overall_td_score': td_avg ,
+            'overall_ts_score': ts_avg ,
+            'overall_tm_score': tm_avg ,
+            'overall_te_score': te_avg ,
+            'overall_score': (
+                round(sum(valid_components) / len(valid_components), 2)
+                if valid_components else None
+            ),
             'assessed_at': datetime.now().isoformat()
         }
         
