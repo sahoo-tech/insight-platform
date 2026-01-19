@@ -136,10 +136,6 @@
   text-decoration: none;
 }
 
-.auth-footer a:hover {
-  text-decoration: underline;
-}
-
 .auth-footer a:focus {
   outline: 2px solid #667eea;
   outline-offset: 2px;
