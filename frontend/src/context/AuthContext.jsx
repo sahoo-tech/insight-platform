@@ -3,6 +3,9 @@ import api from '../services/api';
 
 const AuthContext = createContext(null);
 
+// Module-scoped variable for promise deduplication
+let refreshTokenPromise = null;
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -23,6 +26,7 @@ export function AuthProvider({ children }) {
         } catch (error) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
+            setUser(null);
         } finally {
             setLoading(false);
         }
@@ -65,14 +69,27 @@ export function AuthProvider({ children }) {
         const refresh = localStorage.getItem('refresh_token');
         if (!refresh) return false;
 
-        try {
-            const response = await api.post('/auth/refresh', { refresh_token: refresh });
-            localStorage.setItem('access_token', response.data.access_token);
-            return true;
-        } catch (error) {
-            logout();
-            return false;
+        // If a refresh is already in-flight, return the existing promise
+        if (refreshTokenPromise) {
+            return refreshTokenPromise;
         }
+        
+       // Create and store the refresh promise
+        refreshTokenPromise = (async () => {
+            try {
+                const response = await api.post('/auth/refresh', { refresh_token: refresh });
+                localStorage.setItem('access_token', response.data.access_token);
+                return true;
+            } catch (error) {
+                logout();
+                return false;
+            } finally {
+                // Clear the promise after resolution or rejection
+                refreshTokenPromise = null;
+            }
+        })();
+
+        return refreshTokenPromise;
     };
 
     const value = {
