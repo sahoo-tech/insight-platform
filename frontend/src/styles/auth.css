@@ -129,6 +129,7 @@
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #e5e7eb;
+}
 .auth-footer a {
   color: #667eea;
   font-weight: 600;
@@ -143,9 +144,6 @@
   outline: 2px solid #667eea;
   outline-offset: 2px;
   border-radius: 2px;
-}  color: #667eea;
-  font-weight: 600;
-  text-decoration: none;
 }
 
 .auth-footer a:hover {
